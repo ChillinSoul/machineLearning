@@ -1,7 +1,11 @@
 import json
 import pandas as pd
+import numpy as np
 from datetime import datetime
-
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.impute import SimpleImputer
@@ -121,5 +125,54 @@ def ordinal_encode_column(data_frame, key) -> pd.DataFrame:
     
     return final_df
 
-def data_standardizer():
+def data_standardizer(data_frame:pd.DataFrame):
     standardScaler = StandardScaler()
+    data_frame = standardScaler.fit_transform(data_frame)
+    data = pd.DataFrame(data_frame)
+    return data
+
+def revenue_log(y):
+    res = np.log(y)
+    if res == float('-inf'):
+        return 0.1
+    else:
+        return res
+    
+def devide_by_1_000_000(y):
+    return y/1000000
+def revenue_exp(y):
+    return np.exp(y)
+
+
+def test_data_set(raw_data:pd.DataFrame):
+
+    raw_data = raw_data[raw_data['revenue'] != 0]
+    raw_data['revenue'] = raw_data['revenue'].apply(revenue_log)
+
+    # Preparing the data
+    X = raw_data.drop(columns=['revenue'])
+    y = raw_data['revenue']
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+ 
+    estimators = list(range(1, 201))  
+    rmses = []
+
+
+    for n in estimators:
+        model = RandomForestRegressor(n_estimators=n, random_state=42, max_depth=10, n_jobs=-1)
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+        rmses.append(rmse)
+        print(f"RMSE for {n} estimators: {rmse}")
+
+  
+    plt.figure(figsize=(10, 6))
+    plt.plot(estimators, rmses, marker='o', linestyle='-', markersize=5)
+    plt.title('RMSE vs. Number of Estimators')
+    plt.xlabel('Number of Estimators')
+    plt.ylabel('RMSE')
+    plt.grid(True)
+    plt.show()
+    return plt
