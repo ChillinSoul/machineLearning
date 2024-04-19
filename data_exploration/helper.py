@@ -154,25 +154,21 @@ def test_data_set(raw_data:pd.DataFrame):
     y = raw_data['revenue']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
- 
-    estimators = list(range(1, 201))  
-    rmses = []
+
+    
+    model = RandomForestRegressor(n_estimators=30, random_state=42, max_depth=10, n_jobs=-1)
+    model.fit(X_train, y_train)
+    y_pred = model.predict(X_test)
+    mse = np.sqrt(mean_squared_error(y_test, y_pred))
+    print(f"RMSE for {30} estimators: {mse}")
+    predictions = model.predict(X_test)
+    plt.scatter(y_test, predictions)
+    plt.xlabel('True Values')
+    plt.ylabel('Predictions')
+    plt.axis('equal')
+    plt.axis('square')
+    plt.xlim([10,plt.xlim()[1]])
+    plt.ylim([10,plt.ylim()[1]])
 
 
-    for n in estimators:
-        model = RandomForestRegressor(n_estimators=n, random_state=42, max_depth=10, n_jobs=-1)
-        model.fit(X_train, y_train)
-        y_pred = model.predict(X_test)
-        rmse = np.sqrt(mean_squared_error(y_test, y_pred))
-        rmses.append(rmse)
-        print(f"RMSE for {n} estimators: {rmse}")
-
-  
-    plt.figure(figsize=(10, 6))
-    plt.plot(estimators, rmses, marker='o', linestyle='-', markersize=5)
-    plt.title('RMSE vs. Number of Estimators')
-    plt.xlabel('Number of Estimators')
-    plt.ylabel('RMSE')
-    plt.grid(True)
-    plt.show()
-    return plt
+    _ = plt.plot([-100, 100], [-100, 100])

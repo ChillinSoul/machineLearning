@@ -1,13 +1,75 @@
 import pandas as pd
+from scipy import stats
 import numpy as np
+from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 
+def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
+    """
+    Standardizes the data and optionally applies PCA to reduce dimensionality.
 
-def data_standardizer(data_frame:pd.DataFrame):
+    Args:
+    data_frame (pd.DataFrame): The data frame to be standardized and transformed.
+    n_components (int, optional): The number of principal components to keep. If None, PCA is not applied.
+
+    Returns:
+    pd.DataFrame: The standardized and optionally PCA-transformed data.
+    """
+    # Standardizing the data
     standardScaler = StandardScaler()
-    data_frame = standardScaler.fit_transform(data_frame)
-    data = pd.DataFrame(data_frame)
-    return data
+    standardized_data = standardScaler.fit_transform(data_frame)
+
+    # Check if PCA needs to be applied
+    if n_components is not None:
+        # Applying PCA
+        pca = PCA(n_components=n_components)
+        pca_data = pca.fit_transform(standardized_data)
+        # Convert the PCA output back to DataFrame
+        column_names = [f'Principal Component {i+1}' for i in range(n_components)]
+        pca_df = pd.DataFrame(data=pca_data, columns=column_names)
+        return pca_df
+    
+    return pd.DataFrame(standardized_data, columns=data_frame.columns)
+
+def output_standardizer(y)->pd.Series:
+    """
+    Standardizes the output data.
+
+    Args:
+    y (pd.Series): The output data to be standardized.
+
+    Returns:
+    pd.Series: The standardized output data.
+    """
+    mean = y.mean()
+    std = y.std()
+
+    return (y - mean) / std
+
+
+
+def remove_outliers_z_score(data_frame):
+    z_scores = np.abs(stats.zscore(data_frame))
+    filtered_entries = (z_scores < 3).all(axis=1)
+    new_df = data_frame[filtered_entries]
+    return new_df
+
+
+def remove_outliers_dbscan(data_frame, eps=0.5, min_samples=10):
+    outlier_detection = DBSCAN(eps=eps, min_samples=min_samples)
+    clusters = outlier_detection.fit_predict(data_frame)
+    data_frame['cluster'] = clusters
+    outliers = data_frame[data_frame['cluster'] == -1]
+    outliers.head()
+    cleaned_data = data_frame[data_frame['cluster'] != -1].drop('cluster', axis=1)
+    return cleaned_data
+
+
+
+
+
+
 
 def revenue_log(y):
     res = np.log(y)
