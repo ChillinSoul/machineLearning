@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.impute import SimpleImputer
-
 from sklearn.preprocessing import StandardScaler
-
+from gensim.models import KeyedVectors
 
 def extract_iso_values(json_str:str, key:str ) -> list:
     """
