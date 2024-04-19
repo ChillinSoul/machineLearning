@@ -1,5 +1,6 @@
 *.keras
 *.bin
 data_exploration/GoogleNews-vectors-negative300.bin
-dnn/__pycache__/helper.cpython-311.pyc
-models/__pycache__/helper.cpython-311.pyc
+dnn/__pycache__
+models/__pycache__
+data_exploration/__pycache__
