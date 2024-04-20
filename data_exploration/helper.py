@@ -10,7 +10,9 @@ from sklearn.preprocessing import MultiLabelBinarizer
 from sklearn.preprocessing import OrdinalEncoder
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler
-from gensim.models import KeyedVectors
+from sklearn.decomposition import PCA
+
+
 
 def extract_iso_values(json_str:str, key:str ) -> list:
     """
@@ -124,11 +126,33 @@ def ordinal_encode_column(data_frame, key) -> pd.DataFrame:
     
     return final_df
 
-def data_standardizer(data_frame:pd.DataFrame):
+def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
+    """
+    Standardizes the data and optionally applies PCA to reduce dimensionality.
+
+    Args:
+    data_frame (pd.DataFrame): The data frame to be standardized and transformed.
+    n_components (int, optional): The number of principal components to keep. If None, PCA is not applied.
+
+    Returns:
+    pd.DataFrame: The standardized and optionally PCA-transformed data.
+    """
+    # Standardizing the data
     standardScaler = StandardScaler()
-    data_frame = standardScaler.fit_transform(data_frame)
-    data = pd.DataFrame(data_frame)
-    return data
+    standardized_data = standardScaler.fit_transform(data_frame)
+
+    # Check if PCA needs to be applied
+    if n_components is not None:
+        # Applying PCA
+        pca = PCA(n_components=n_components)
+        pca_data = pca.fit_transform(standardized_data)
+        # Convert the PCA output back to DataFrame
+        column_names = [f'Principal Component {i+1}' for i in range(n_components)]
+        pca_df = pd.DataFrame(data=pca_data, columns=column_names)
+        return pca_df
+    
+    return pd.DataFrame(standardized_data, columns=data_frame.columns)
+
 
 def revenue_log(y):
     res = np.log(y)
@@ -150,6 +174,7 @@ def test_data_set(raw_data:pd.DataFrame):
 
     # Preparing the data
     X = raw_data.drop(columns=['revenue'])
+    X = data_standardizer(X, 5)
     y = raw_data['revenue']
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
