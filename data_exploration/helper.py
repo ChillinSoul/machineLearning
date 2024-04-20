@@ -1,6 +1,8 @@
 import json
 import pandas as pd
 import numpy as np
+import seaborn as sns
+from mpl_toolkits.mplot3d import Axes3D
 from datetime import datetime
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
@@ -13,118 +15,209 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 
-
-def extract_iso_values(json_str:str, key:str ) -> list:
+def extract_iso_values(json_str: str, key: str) -> list:
     """
-    This function takes in a json string and a key, and returns a list of the values for the specified key in the json string.
+    Extracts values from a JSON string that contains a list of dictionaries,
+    all of which are expected to contain the specified key.
+
+    Parameters:
+    json_str (str): The JSON string to parse.
+    key (str): The key whose values are to be extracted.
+
+    Returns:
+    list: A list of values associated with the given key, or ["error"] if an error occurs.
     """
     try:
         data_list = json.loads(json_str)
-        iso_values = [item[key] for item in data_list]
+        iso_values = [item[key] for item in data_list if key in item]
         return iso_values
-    except json.JSONDecodeError as e:
-        return ["error"]  
-    except KeyError as e:
-        return ["error"]   
+    except json.JSONDecodeError:
+        return ["error: invalid JSON format"]
+    except KeyError:
+        return ["error: key not found"]
     except Exception as e:
-        return ["error"] 
+        return [f"error: {str(e)}"]
 
-def extract_iso_values_to_string(json_str:str, key:str ) -> str:
+
+def extract_iso_values_to_string(json_str: str, key: str) -> str:
     """
-    This function takes in a json string and a key, and returns a list of the values for the specified key in the json string.
+    Converts extracted values from a JSON string into a single comma-separated string.
+
+    Parameters:
+    json_str (str): The JSON string to parse.
+    key (str): The key whose values are to be concatenated.
+
+    Returns:
+    str: A comma-separated string of values for the given key, or "error" if an error occurs.
     """
     try:
         data_list = json.loads(json_str)
-        iso_values = ','.join(item[key] for item in data_list)
+        iso_values = ','.join(str(item[key]) for item in data_list if key in item)
         return iso_values
-    except json.JSONDecodeError as e:
-        return "error"  
-    except KeyError as e:
-        return "error"   
+    except json.JSONDecodeError:
+        return "error: invalid JSON format"
+    except KeyError:
+        return "error: key not found"
     except Exception as e:
-        return "error" 
+        return f"error: {str(e)}"
 
-def extract_first_iso_value(json_str:str, key:str) -> str:
+
+def extract_first_iso_value(json_str: str, key: str) -> str:
     """
-    This function takes in a json string and a key, and returns the first value for the specified key in the json string.
+    Extracts the first value associated with the specified key from a JSON string.
+
+    Parameters:
+    json_str (str): The JSON string to parse.
+    key (str): The key whose first value is to be extracted.
+
+    Returns:
+    str: The first value found for the given key, or None if an error occurs.
     """
     try:
-        return extract_iso_values(json_str, key)[0]
+        values = extract_iso_values(json_str, key)
+        return values[0] if values else None
     except Exception as e:
         return None
 
 
-def convert_datestring_to_days_since_2000(date: str) -> int:
-    try:
-        year = int(date[:4])
-        month = int(date[5:7])
-        day = int(date[8:])
-    except Exception as e:
-        return 0
-    given_date = datetime(year, month, day)
+def convert_datestring_to_days_since_1900(date: str) -> int:
+    """
+    Calculates the number of days from January 1, 1900, to a given date.
 
-    start_date = datetime(2000, 1, 1)
+    Parameters:
+    date (str): The date string in the format 'YYYY-MM-DD'.
+
+    Returns:
+    int: The number of days from January 1, 1900, to the given date.
+         Returns 0 if the date format is incorrect or the date is before January 1, 1900.
+
+    Examples:
+    >>> convert_datestring_to_days_since_1900('2021-03-15')
+    44299
+    """
+    try:
+        given_date = datetime.strptime(date, '%Y-%m-%d')
+    except ValueError:
+        return 0
+
+    start_date = datetime(1900, 1, 1)
 
     delta = given_date - start_date
+
+    if delta.days < 0:
+        return 0
+
     return delta.days
 
 
-
-
-def extended_imputation(data_frame:pd.DataFrame) -> pd.DataFrame:
+def extended_imputation(data_frame: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """
-    This function takes in a dataframe and a key, and returns a dataframe with the original dataframe and the imputed dataframe concatenated.
+    Imputes missing values in a DataFrame using different strategies based on the column data type.
+    For categorical data (object type), it uses the most frequent value for imputation.
+    For numerical data, it uses the mean value for imputation.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame to process for missing values.
+    verbose (bool): If True, prints the columns being processed and any errors encountered.
+
+    Returns:
+    pd.DataFrame: The DataFrame with imputed values.
+
+    Notes:
+    If imputation fails for a column, that column is dropped from the DataFrame.
     """
-    # Identify columns with missing data
     cols_with_missing_data = [col for col in data_frame.columns if data_frame[col].isnull().any()]
-    print(f"cols with missing data : {cols_with_missing_data}")
-    # Impute missing values with the mean for numerical columns and the most frequent value for categorical columns
-    
+    if verbose:
+        print(f"Columns with missing data: {cols_with_missing_data}")
+
     for col in cols_with_missing_data:
-        if data_frame[col].dtype == "object":
-            imputer = SimpleImputer(strategy='most_frequent')
-        else:
-            imputer = SimpleImputer(strategy='mean')
         try:
-            data_frame[col] = imputer.fit_transform(data_frame[[col]])
+            if data_frame[col].dtype == "object":
+                imputer = SimpleImputer(strategy='most_frequent')
+            else:
+                imputer = SimpleImputer(strategy='mean')
+            
+            data_frame.loc[col] = imputer.fit_transform(data_frame.loc[[col]])
         except Exception as e:
-            data_frame.drop(col,axis=1)
-            print(f"droped : {col}")
-            print(e)
+            data_frame = data_frame.drop(columns=[col])
+            if verbose:
+                print(f"Dropped column '{col}' due to an error during imputation.")
+                print(e)
+
     return data_frame
 
-def one_hot_encode_column(data_frame, key) -> pd.DataFrame:
+
+def one_hot_encode_column(data_frame, key, verbose: bool = False) -> pd.DataFrame:
     """
-    This function takes in a dataframe and a key (column name), and returns a dataframe with the original dataframe and the one-hot encoded dataframe concatenated.
-    The key column is expected to contain comma-separated strings or NaNs.
+    One-hot encodes a specified column in a pandas DataFrame. This function is particularly useful
+    for columns storing lists of categories as comma-separated strings. Each category becomes a 
+    binary column in the resulting DataFrame.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame containing the data.
+    key (str): The column name to be one-hot encoded.
+    verbose (bool): If True, prints the number of columns generated from one-hot encoding.
+
+    Returns:
+    pd.DataFrame: A DataFrame with the original data and new one-hot encoded columns.
+
+    Raises:
+    KeyError: If the specified key is not in the DataFrame's columns.
     """
-    # Handle NaN values by replacing them with an empty string before splitting
-    series_clean = data_frame[key].fillna('').apply(lambda x: x.split(',') if x != '' else [])
     
+    if key not in data_frame.columns:
+        raise KeyError(f"Column '{key}' not found in the DataFrame.")
+
+    series_clean = data_frame[key].fillna('').apply(lambda x: x.split(',') if x else [])
+
     mlb = MultiLabelBinarizer()
     one_hot_encoded_data = mlb.fit_transform(series_clean.tolist())
     one_hot_encoded_df = pd.DataFrame(one_hot_encoded_data, columns=mlb.classes_)
-    num_columns_one_hot_encoded = one_hot_encoded_df.shape[1]
-    print(f"Number of columns in the one-hot encoded data for {key}: {num_columns_one_hot_encoded}")
+
+    if verbose:
+        num_columns_one_hot_encoded = one_hot_encoded_df.shape[1]
+        print(f"Number of columns in the one-hot encoded data for '{key}': {num_columns_one_hot_encoded}")
 
     final_df = pd.concat([data_frame, one_hot_encoded_df], axis=1)
-    
-    return final_df
 
+    return final_df
 
 
 def ordinal_encode_column(data_frame, key) -> pd.DataFrame:
     """
-    This function takes in a dataframe and a key, and returns a dataframe with the original dataframe and the ordinal encoded dataframe concatenated.
-    The column specified by 'key' is expected to contain comma-separated strings or NaNs.
+    Ordinal encodes a specified column in a pandas DataFrame. This function
+    handles columns containing comma-separated strings by first sorting the strings,
+    then applying the ordinal encoding. Missing values are filled with an empty string
+    before encoding.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame containing the data.
+    key (str): The column name to be ordinal encoded.
+
+    Returns:
+    pd.DataFrame: The original DataFrame with an additional column added for the
+                  ordinal encoded values, named '{key}_encoded'.
+
+    Raises:
+    ValueError: If the specified key is not in the DataFrame's columns.
     """
-    cleaned_data = data_frame[key].fillna('').apply(lambda x: ','.join(sorted(x.split(','))) if x != '' else '')
+    if key not in data_frame.columns:
+        raise ValueError(f"Column '{key}' does not exist in the DataFrame.")
+
+    cleaned_data = data_frame[key].fillna('').apply(
+        lambda x: ','.join(sorted(x.split(','))) if x != '' else ''
+    )
+
     oe = OrdinalEncoder()
+
     ordinal_encoded_data = oe.fit_transform(cleaned_data.values.reshape(-1, 1))
+    
     ordinal_encoded_df = pd.DataFrame(ordinal_encoded_data, columns=[key + '_encoded'])
+    
     final_df = pd.concat([data_frame, ordinal_encoded_df], axis=1)
     
     return final_df
+
 
 def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
     """
@@ -137,16 +230,12 @@ def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
     Returns:
     pd.DataFrame: The standardized and optionally PCA-transformed data.
     """
-    # Standardizing the data
     standardScaler = StandardScaler()
     standardized_data = standardScaler.fit_transform(data_frame)
 
-    # Check if PCA needs to be applied
     if n_components is not None:
-        # Applying PCA
         pca = PCA(n_components=n_components)
         pca_data = pca.fit_transform(standardized_data)
-        # Convert the PCA output back to DataFrame
         column_names = [f'Principal Component {i+1}' for i in range(n_components)]
         pca_df = pd.DataFrame(data=pca_data, columns=column_names)
         return pca_df
@@ -156,43 +245,261 @@ def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
 
 def revenue_log(y):
     res = np.log(y)
-    if res == float('-inf'):
-        return 0.1
-    else:
-        return res
-    
-def devide_by_1_000_000(y):
-    return y/1000000
-def revenue_exp(y):
-    return np.exp(y)
+    if res == float('-inf'): return 0.1
+    else: return res
 
 
-def test_data_set(raw_data:pd.DataFrame):
+def transparent(y): return y
+
+
+def devide_by_1_000_000(y): return y/1000000
+
+
+def revenue_exp(y): return np.exp(y)
+
+
+def revenue_sqrt(y): return np.sqrt(y)
+
+
+def revenue_transform(y, transformation="revenue_log"):
+    """
+    Transforms revenue data according to the specified method.
+
+    Parameters:
+    y (Series, array-like, or scalar): The revenue data to transform.
+    transformation (str): Specifies the type of transformation to apply. Options include:
+        - "revenue_log": Logarithmic transformation (default)
+        - "revenue_exp": Exponential transformation
+        - "revenue_sqrt": Square root transformation
+        - "transparent": No transformation
+        - "devide_by_1_000_000": Division by one million
+
+    Returns:
+    Transformed data, depending on the chosen transformation method.
+    """
+    match transformation:
+        case "revenue_log":
+            return revenue_log(y)
+        case "revenue_exp":
+            return revenue_exp(y)
+        case "revenue_sqrt":
+            return revenue_sqrt(y)
+        case "transparent":
+            return transparent(y)
+        case "devide_by_1_000_000":
+            return devide_by_1_000_000(y)
+        case _:
+            return revenue_log(y)
+
+
+def test_data_set(raw_data: pd.DataFrame, graph: bool = False, pca_components: int = None,
+                  revenue_transform = revenue_log, verbose: bool = False):
+    """
+    Evaluates the performance of a RandomForestRegressor on transformed data.
+
+    Parameters:
+    raw_data (pd.DataFrame): The DataFrame containing features and a 'revenue' target column.
+    graph (bool): If True, plots the actual values vs predictions.
+    pca_components (int): The number of principal components to reduce to. If None, PCA is not applied.
+    revenue_transform (function): A function to apply to the 'revenue' column before modeling.
+    verbose (bool): If True, prints additional model performance information.
+
+    Returns:
+    float: The root mean squared error of the model's predictions.
+    """
 
     raw_data = raw_data[raw_data['revenue'] != 0]
-    raw_data['revenue'] = raw_data['revenue'].apply(revenue_log)
+    raw_data['revenue'] = raw_data['revenue'].apply(revenue_transform)
 
-    # Preparing the data
     X = raw_data.drop(columns=['revenue'])
-    X = data_standardizer(X, 5)
+    X = data_standardizer(X, n_components=pca_components)
     y = raw_data['revenue']
+
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-
-    
     model = RandomForestRegressor(n_estimators=30, random_state=42, max_depth=10, n_jobs=-1)
     model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    mse = np.sqrt(mean_squared_error(y_test, y_pred))
-    print(f"RMSE for {30} estimators: {mse}")
+
     predictions = model.predict(X_test)
-    plt.scatter(y_test, predictions)
-    plt.xlabel('True Values')
-    plt.ylabel('Predictions')
-    plt.axis('equal')
-    plt.axis('square')
-    plt.xlim([10,plt.xlim()[1]])
-    plt.ylim([10,plt.ylim()[1]])
+    mse = np.sqrt(mean_squared_error(y_test, predictions))
+
+    if verbose:
+        print(f"RMSE for {30} estimators: {mse}")
+        ratio = y_test / predictions
+        print(f"Mean ratio of y_test to predictions: {np.mean(ratio)}")
 
 
-    _ = plt.plot([-100, 100], [-100, 100])
+    if graph:
+        plt.scatter(y_test, predictions, alpha=0.5)
+        plt.xlabel('True Values')
+        plt.ylabel('Predictions')
+        plt.axis('equal')
+        plt.axis('square')
+        plt.xlim([plt.xlim()[0], plt.xlim()[1]])
+        plt.ylim([plt.ylim()[0], plt.ylim()[1]])
+        plt.plot([-100, 100], [-100, 100], 'r')  # Diagonal line
+        plt.show()
+
+    return mse
+
+
+def plot_mse_pca(raw_data: pd.DataFrame, revenue_transform = revenue_log):
+    """
+    Plots the Root Mean Squared Error (RMSE) against the number of PCA components used in the model.
+
+    Parameters:
+    raw_data (pd.DataFrame): The DataFrame containing the data to be analyzed.
+    revenue_transform (function): A function to transform the 'revenue' column before modeling.
+
+    Returns:
+    None: Displays a plot of RMSE versus the number of PCA components.
+    """
+    mse_values = []
+    best_mse = float('inf')  
+    best_pca = 0
+
+    for i in range(1, raw_data.shape[1]):
+        mse = test_data_set(raw_data, pca_components=i, revenue_transform=revenue_transform)
+        mse_values.append(mse)
+        if mse < best_mse:
+            best_mse = mse
+            best_pca = i
+
+    print(f"Best RMSE: {best_mse:.2f} for {best_pca} PCA components")
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, raw_data.shape[1]), mse_values, marker='o', linestyle='-', color='b')
+    plt.xlabel('Number of PCA Components')
+    plt.ylabel('RMSE')
+    plt.title('RMSE vs. Number of PCA Components')
+    plt.grid(True)
+    plt.show()
+
+
+def plot_pca_2d(data_frame, target_column):
+    """
+    Generates a 2D PCA scatter plot from the given DataFrame, reducing feature dimensions to two principal components,
+    and plots these components with points color-coded by the specified target column.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame containing the dataset with features and target.
+    target_column (str): The column in the DataFrame to use for color coding in the scatter plot.
+
+    Raises:
+    ValueError: If the specified `target_column` does not exist in the DataFrame.
+
+    Returns:
+    None: Displays a 2D scatter plot of the two principal components.
+    """
+
+    if target_column not in data_frame.columns:
+        raise ValueError(f"Column '{target_column}' does not exist in the DataFrame.")
+    
+    features = data_frame.drop(columns=[target_column])
+    targets = data_frame[target_column]
+
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(features)
+
+    pca = PCA(n_components=2)
+    pca_data = pca.fit_transform(standardized_features)
+    pca_df = pd.DataFrame(data=pca_data, columns=['Principal Component 1', 'Principal Component 2'])
+
+    pca_df[target_column] = targets
+    
+    plt.figure(figsize=(8, 6))
+    sns.scatterplot(x='Principal Component 1', y='Principal Component 2', hue=target_column, data=pca_df, palette='viridis')
+    plt.title('2D PCA of ' + target_column)
+    plt.show()
+
+
+def plot_pca_3d(data_frame, target_column):
+    """
+    Generates a 3D scatter plot for the first three principal components of the given data.
+
+    This function standardizes the features of the provided DataFrame, applies PCA to reduce
+    the dimensionality to three components, and plots these components in a 3D scatter plot
+    color-coded by the target column.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame containing the data to analyze.
+    target_column (str): The column name in `data_frame` used for color coding the plot points.
+
+    Raises:
+    ValueError: If the specified `target_column` is not in the DataFrame.
+
+    Returns:
+    None: The function directly displays the 3D scatter plot.
+    """
+    
+    if target_column not in data_frame.columns:
+        raise ValueError(f"Column '{target_column}' does not exist in the DataFrame.")
+    
+    features = data_frame.drop(columns=[target_column])
+    targets = data_frame[target_column]
+
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(features)
+
+    pca = PCA(n_components=3)
+    pca_data = pca.fit_transform(standardized_features)
+    pca_df = pd.DataFrame(data=pca_data, columns=['Principal Component 1', 'Principal Component 2', 'Principal Component 3'])
+
+    pca_df[target_column] = targets
+
+    fig = plt.figure(figsize=(10, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    scatter = ax.scatter(pca_df['Principal Component 1'], pca_df['Principal Component 2'], pca_df['Principal Component 3'],
+                         c=targets, cmap='viridis', edgecolor='k', s=40, alpha=0.5)
+    ax.set_title('3D PCA')
+    ax.set_xlabel('Principal Component 1')
+    ax.set_ylabel('Principal Component 2')
+    ax.set_zlabel('Principal Component 3')
+    legend = ax.legend(*scatter.legend_elements(), title=target_column)
+    ax.add_artist(legend)
+    plt.show()
+
+
+def plot_pca_pairplot(data_frame, target_column):
+    """
+    Generates a pair plot for the first three principal components of the given data.
+
+    This function takes a DataFrame and a specified column for color coding (target variable),
+    standardizes the features, applies PCA to reduce dimensions to three principal components,
+    and creates a pair plot of these components with regression lines.
+
+    Parameters:
+    data_frame (pd.DataFrame): The DataFrame containing the data.
+    target_column (str): The name of the column in `data_frame` to use as the target variable for color coding in the plot.
+
+    Raises:
+    ValueError: If the `target_column` is not in the DataFrame.
+
+    Returns:
+    None: The function directly displays the pair plot.
+    """
+    
+    if target_column not in data_frame.columns:
+        raise ValueError(f"Column '{target_column}' does not exist in the DataFrame.")
+    
+
+    features = data_frame.drop(columns=[target_column])
+    targets = data_frame[target_column]
+
+
+    scaler = StandardScaler()
+    standardized_features = scaler.fit_transform(features)
+
+    pca = PCA(n_components=3)
+    pca_data = pca.fit_transform(standardized_features)
+    pca_df = pd.DataFrame(data=pca_data, columns=['Principal Component 1', 
+                                                  'Principal Component 2', 
+                                                  'Principal Component 3'])
+
+    pca_df[target_column] = targets
+
+
+    pair_plot = sns.pairplot(pca_df, kind='reg', plot_kws={'scatter_kws': {'alpha': 0.5}})
+    pair_plot.figure.suptitle('PCA Pair Plot of ' + target_column, y=1.02)  
+    plt.show()
+
