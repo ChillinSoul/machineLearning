@@ -326,7 +326,8 @@ def test_data_set(raw_data: pd.DataFrame, graph: bool = False, pca_components: i
     if verbose:
         print(f"RMSE for {30} estimators: {mse}")
         ratio = y_test / predictions
-        print(f"Mean ratio of y_test to predictions: {np.mean(ratio)}")
+        print(f"ratio of y_test to predictions:")
+        print(ratio.describe())
 
 
     if graph:
