@@ -15,7 +15,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
 
-def extract_iso_values(json_str: str, key: str) -> list:
+def extract_iso_values(
+        json_str: str,
+        key: str
+        ) -> list:
     """
     Extracts values from a JSON string that contains a list of dictionaries,
     all of which are expected to contain the specified key.
@@ -39,7 +42,10 @@ def extract_iso_values(json_str: str, key: str) -> list:
         return [f"error: {str(e)}"]
 
 
-def extract_iso_values_to_string(json_str: str, key: str) -> str:
+def extract_iso_values_to_string(
+        json_str: str, 
+        key: str
+        ) -> str:
     """
     Converts extracted values from a JSON string into a single comma-separated string.
 
@@ -62,7 +68,10 @@ def extract_iso_values_to_string(json_str: str, key: str) -> str:
         return f"error: {str(e)}"
 
 
-def extract_first_iso_value(json_str: str, key: str) -> str:
+def extract_first_iso_value(
+        json_str: str, 
+        key: str
+        ) -> str:
     """
     Extracts the first value associated with the specified key from a JSON string.
 
@@ -80,7 +89,9 @@ def extract_first_iso_value(json_str: str, key: str) -> str:
         return None
 
 
-def convert_datestring_to_days_since_1900(date: str) -> int:
+def convert_datestring_to_days_since_1900(
+        date: str
+        ) -> int:
     """
     Calculates the number of days from January 1, 1900, to a given date.
 
@@ -110,7 +121,10 @@ def convert_datestring_to_days_since_1900(date: str) -> int:
     return delta.days
 
 
-def extended_imputation(data_frame: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
+def extended_imputation(
+        data_frame: pd.DataFrame, 
+        verbose: bool = False
+        ) -> pd.DataFrame:
     """
     Imputes missing values in a DataFrame using different strategies based on the column data type.
     For categorical data (object type), it uses the most frequent value for imputation.
@@ -147,7 +161,11 @@ def extended_imputation(data_frame: pd.DataFrame, verbose: bool = False) -> pd.D
     return data_frame
 
 
-def one_hot_encode_column(data_frame, key, verbose: bool = False) -> pd.DataFrame:
+def one_hot_encode_column(
+        data_frame: pd.DataFrame, 
+        key: str, 
+        verbose: bool = False
+        ) -> pd.DataFrame:
     """
     One-hot encodes a specified column in a pandas DataFrame. This function is particularly useful
     for columns storing lists of categories as comma-separated strings. Each category becomes a 
@@ -183,7 +201,10 @@ def one_hot_encode_column(data_frame, key, verbose: bool = False) -> pd.DataFram
     return final_df
 
 
-def ordinal_encode_column(data_frame, key) -> pd.DataFrame:
+def ordinal_encode_column(
+        data_frame: pd.DataFrame, 
+        key
+        ) -> pd.DataFrame:
     """
     Ordinal encodes a specified column in a pandas DataFrame. This function
     handles columns containing comma-separated strings by first sorting the strings,
@@ -219,7 +240,11 @@ def ordinal_encode_column(data_frame, key) -> pd.DataFrame:
     return final_df
 
 
-def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
+def data_standardizer(
+        data_frame: pd.DataFrame, 
+        *,
+        n_components: int = None
+        )->pd.DataFrame:
     """
     Standardizes the data and optionally applies PCA to reduce dimensionality.
 
@@ -243,29 +268,47 @@ def data_standardizer(data_frame: pd.DataFrame, n_components: int = None):
     return pd.DataFrame(standardized_data, columns=data_frame.columns)
 
 
-def revenue_log(y):
+def revenue_log(
+        y: float
+        )->float:
     res = np.log(y)
     if res == float('-inf'): return 0.1
     else: return res
 
 
-def transparent(y): return y
+def transparent(
+        y: float
+        )->float:
+    return y
 
 
-def devide_by_1_000_000(y): return y/1000000
+def devide_by_1_000_000(
+        y: float
+        )->float:
+    return y/1000000
 
 
-def revenue_exp(y): return np.exp(y)
+def revenue_exp(
+        y:  float
+        )-> float: 
+    return np.exp(y)
 
 
-def revenue_sqrt(y): return np.sqrt(y)
+def revenue_sqrt(
+        y:  float
+        )->float:
+    return np.sqrt(y)
 
 
-def revenue_transform(y, transformation="revenue_log"):
+def revenue_transform(
+        y: float,
+        *,
+        transformation: str ="revenue_log"
+        )->float:
     """
     Transforms revenue data according to the specified method.
 
-    Parameters:
+    :Parameters:
     y (Series, array-like, or scalar): The revenue data to transform.
     transformation (str): Specifies the type of transformation to apply. Options include:
         - "revenue_log": Logarithmic transformation (default)
@@ -274,7 +317,7 @@ def revenue_transform(y, transformation="revenue_log"):
         - "transparent": No transformation
         - "devide_by_1_000_000": Division by one million
 
-    Returns:
+    :Returns:
     Transformed data, depending on the chosen transformation method.
     """
     match transformation:
@@ -292,8 +335,13 @@ def revenue_transform(y, transformation="revenue_log"):
             return revenue_log(y)
 
 
-def test_data_set(raw_data: pd.DataFrame, graph: bool = False, pca_components: int = None,
-                  revenue_transform = revenue_log, verbose: bool = False):
+def test_data_set(
+        raw_data: pd.DataFrame, 
+        graph: bool = False, 
+        pca_components: int = None,
+        revenue_transform = revenue_log, 
+        verbose: bool = False
+        )->float:
     """
     Evaluates the performance of a RandomForestRegressor on transformed data.
 
@@ -325,7 +373,7 @@ def test_data_set(raw_data: pd.DataFrame, graph: bool = False, pca_components: i
 
     if verbose:
         print(f"RMSE for {30} estimators: {mse}")
-        ratio = y_test / predictions
+        ratio = revenue_exp(y_test) / revenue_exp(predictions)
         print(f"ratio of y_test to predictions:")
         print(ratio.describe())
 
@@ -344,7 +392,10 @@ def test_data_set(raw_data: pd.DataFrame, graph: bool = False, pca_components: i
     return mse
 
 
-def plot_mse_pca(raw_data: pd.DataFrame, revenue_transform = revenue_log):
+def plot_mse_pca(
+        raw_data: pd.DataFrame, 
+        revenue_transform = revenue_log
+        )->None:
     """
     Plots the Root Mean Squared Error (RMSE) against the number of PCA components used in the model.
 
@@ -377,7 +428,10 @@ def plot_mse_pca(raw_data: pd.DataFrame, revenue_transform = revenue_log):
     plt.show()
 
 
-def plot_pca_2d(data_frame, target_column):
+def plot_pca_2d(
+        data_frame: pd.DataFrame, 
+        target_column: str
+        )->None:
     """
     Generates a 2D PCA scatter plot from the given DataFrame, reducing feature dimensions to two principal components,
     and plots these components with points color-coded by the specified target column.
@@ -414,7 +468,10 @@ def plot_pca_2d(data_frame, target_column):
     plt.show()
 
 
-def plot_pca_3d(data_frame, target_column):
+def plot_pca_3d(
+        data_frame:pd.DataFrame, 
+        target_column: str
+        )->None:
     """
     Generates a 3D scatter plot for the first three principal components of the given data.
 
@@ -461,7 +518,10 @@ def plot_pca_3d(data_frame, target_column):
     plt.show()
 
 
-def plot_pca_pairplot(data_frame, target_column):
+def plot_pca_pairplot(
+        data_frame:pd.DataFrame, 
+        target_column: str
+        )->None:
     """
     Generates a pair plot for the first three principal components of the given data.
 
