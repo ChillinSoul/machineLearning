@@ -13,7 +13,7 @@ def get_test_train_split(*, revenue_transformation: str = "revenue_log"):
     data = data[data['revenue'] != 0]
 
     X = data.drop('revenue', axis=1)
-    X = data_standardizer(X,8)
+    X = data_standardizer(X)
 
     y = data['revenue']
     y = y.apply( lambda x: revenue_transform(x, transformation=revenue_transformation))

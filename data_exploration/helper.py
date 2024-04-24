@@ -340,7 +340,8 @@ def test_data_set(
         graph: bool = False, 
         pca_components: int = None,
         revenue_transform = revenue_log, 
-        verbose: bool = False
+        verbose: bool = False,
+        n_estimators: int = 30
         )->float:
     """
     Evaluates the performance of a RandomForestRegressor on transformed data.
@@ -365,14 +366,14 @@ def test_data_set(
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    model = RandomForestRegressor(n_estimators=30, random_state=42, max_depth=10, n_jobs=-1)
+    model = RandomForestRegressor(n_estimators=n_estimators, random_state=42, max_depth=10, n_jobs=-1)
     model.fit(X_train, y_train)
 
     predictions = model.predict(X_test)
-    mse = np.sqrt(mean_squared_error(y_test, predictions))
+    rmse = np.sqrt(mean_squared_error(revenue_exp(y_test), revenue_exp(predictions)))
 
     if verbose:
-        print(f"RMSE for {30} estimators: {mse}")
+        print(f"RMSE for {n_estimators} estimators: {rmse}")
         ratio = revenue_exp(y_test) / revenue_exp(predictions)
         print(f"ratio of y_test to predictions:")
         print(ratio.describe())
@@ -389,7 +390,7 @@ def test_data_set(
         plt.plot([-100, 100], [-100, 100], 'r')  # Diagonal line
         plt.show()
 
-    return mse
+    return rmse
 
 
 def plot_mse_pca(
@@ -494,8 +495,7 @@ def plot_pca_3d(
         raise ValueError(f"Column '{target_column}' does not exist in the DataFrame.")
     
     features = data_frame.drop(columns=[target_column])
-    targets = data_frame[target_column]
-
+    targets = data_frame[target_column].apply(revenue_log)
     scaler = StandardScaler()
     standardized_features = scaler.fit_transform(features)
 
@@ -545,7 +545,7 @@ def plot_pca_pairplot(
     
 
     features = data_frame.drop(columns=[target_column])
-    targets = data_frame[target_column]
+    targets = data_frame[target_column].apply(revenue_log)
 
 
     scaler = StandardScaler()
