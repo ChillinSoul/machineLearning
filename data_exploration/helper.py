@@ -138,7 +138,7 @@ def extended_imputation(
     pd.DataFrame: The DataFrame with imputed values.
 
     Notes:
-    If imputation fails for a column, that column is dropped from the DataFrame.
+    If imputation fails for a column, the missing values in that column are dropped from the DataFrame.
     """
     cols_with_missing_data = [col for col in data_frame.columns if data_frame[col].isnull().any()]
     if verbose:
@@ -153,7 +153,7 @@ def extended_imputation(
             
             data_frame.loc[col] = imputer.fit_transform(data_frame.loc[[col]])
         except Exception as e:
-            data_frame = data_frame.drop(columns=[col])
+            data_frame = data_frame.dropna(subset=[col])
             if verbose:
                 print(f"Dropped column '{col}' due to an error during imputation.")
                 print(e)
@@ -546,7 +546,7 @@ def plot_pca_pairplot(
     
 
     features = data_frame.drop(columns=[target_column])
-    targets = data_frame[target_column].apply(revenue_log)
+    targets = data_frame[target_column]
 
 
     scaler = StandardScaler()
