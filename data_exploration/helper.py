@@ -358,7 +358,7 @@ def test_data_set(
     """
 
     raw_data = raw_data[raw_data['revenue'] != 0]
-    raw_data['revenue'] = raw_data['revenue'].apply(revenue_transform)
+    raw_data['revenue'] = raw_data['revenue']#.apply(revenue_transform)
 
     X = raw_data.drop(columns=['revenue'])
     X = data_standardizer(X, n_components=pca_components)
@@ -370,11 +370,12 @@ def test_data_set(
     model.fit(X_train, y_train)
 
     predictions = model.predict(X_test)
-    rmse = np.sqrt(mean_squared_error(revenue_exp(y_test), revenue_exp(predictions)))
-
+    #rmse = np.sqrt(mean_squared_error(revenue_exp(y_test), revenue_exp(predictions)))
+    rmse= np.sqrt(mean_squared_error(y_test, predictions))
     if verbose:
         print(f"RMSE for {n_estimators} estimators: {rmse}")
-        ratio = revenue_exp(y_test) / revenue_exp(predictions)
+        #ratio = revenue_exp(y_test) / revenue_exp(predictions)
+        ratio = y_test / predictions
         print(f"ratio of y_test to predictions:")
         print(ratio.describe())
 
