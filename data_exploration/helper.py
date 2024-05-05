@@ -121,10 +121,8 @@ def convert_datestring_to_days_since_1900(
     return delta.days
 
 
-def extended_imputation(
-        data_frame: pd.DataFrame, 
-        verbose: bool = False
-        ) -> pd.DataFrame:
+
+def extended_imputation(data_frame: pd.DataFrame, verbose: bool = False) -> pd.DataFrame:
     """
     Imputes missing values in a DataFrame using different strategies based on the column data type.
     For categorical data (object type), it uses the most frequent value for imputation.
@@ -146,19 +144,23 @@ def extended_imputation(
 
     for col in cols_with_missing_data:
         try:
-            if data_frame[col].dtype == "object":
+            # Choose imputer type based on column data type
+            if data_frame[col].dtype == "object" or data_frame[col].dtype == 'category':
                 imputer = SimpleImputer(strategy='most_frequent')
             else:
                 imputer = SimpleImputer(strategy='mean')
-            
-            data_frame.loc[col] = imputer.fit_transform(data_frame.loc[[col]])
+
+            # Apply imputation
+            data_frame[col] = imputer.fit_transform(data_frame[[col]])
         except Exception as e:
-            data_frame = data_frame.dropna(subset=[col])
+            # If imputation fails, drop the column
+            data_frame = data_frame.drop(columns=[col])
             if verbose:
-                print(f"Dropped column '{col}' due to an error during imputation.")
-                print(e)
+                print(f"Dropped column '{col}' due to an error during imputation: {e}")
 
     return data_frame
+
+
 
 
 def one_hot_encode_column(

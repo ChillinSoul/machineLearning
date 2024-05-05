@@ -20,6 +20,18 @@ def get_test_train_split(*, revenue_transformation: str = "revenue_log"):
 
     return train_test_split(X, y, test_size=0.2, random_state=42)
 
+def get_data():
+    data = pd.read_csv('../input/preprocessed_data.csv')
+    return data
+def get_features():
+    data = pd.read_csv('../input/preprocessed_data.csv')
+    return data.drop('revenue', axis=1)
+def get_target():
+    data = pd.read_csv('../input/preprocessed_data.csv')
+    return data['revenue']
+def get_features_names():
+    data = pd.read_csv('../input/preprocessed_data.csv')
+    return data.drop('revenue', axis=1).columns
 
 def data_standardizer(
         data_frame: pd.DataFrame,
@@ -82,7 +94,7 @@ def remove_outliers_z_score(
     pd.DataFrame: A DataFrame with outliers removed based on Z-scores.
     """
     z_scores = np.abs(stats.zscore(data_frame.select_dtypes(include=[np.number])))
-    filtered_entries = (z_scores < 3).all(axis=1)
+    filtered_entries = (z_scores < 2).all(axis=1)
     new_df = data_frame[filtered_entries]
     return new_df
 
